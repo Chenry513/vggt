@@ -9,7 +9,7 @@
 
 WeldPath Viz is a browser-based 3D point cloud viewer and weld path planning tool. It lets you load a reconstructed 3D point cloud of a welding part, visually inspect it, define a weld path by clicking start and end points directly on the part surface, and read out the exact X, Y, Z coordinates.
 
-**Live site:** [YOUR_LINK_HERE]
+**Live site:** https://chenry513.github.io/weldpath-viz/visualize_weld.html
 
 ---
 
@@ -39,7 +39,7 @@ The idea is that instead of manually programming a robotic welding arm for every
 
 ## Usage
 
-Visit the live site at [YOUR_LINK_HERE].
+Visit the live site at https://chenry513.github.io/weldpath-viz/visualize_weld.html
 
 ### Load your point cloud
 
