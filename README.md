@@ -144,7 +144,7 @@ Start and end points are currently selected by clicking in the viewer. A geometr
 ```
 vggt/
 ├── weld_pipeline.py        main reconstruction and calibration script
-├── visualize_weld.html     3D viewer (also live at GitHub Pages)
+├── index.html     3D viewer (also live at GitHub Pages)
 ├── requirements.txt        Python dependencies
 ├── README.md
 └── vggt/                   VGGT model code (Meta Research)
