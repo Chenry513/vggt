@@ -1,153 +1,159 @@
-# WeldPath Viz — 3D Weld Path Planner
+# Minimal Multi-View 3D Reconstruction for Robotic Welding
 
-**BCIT — Applied Research Project**
+**BCIT — Applied Research Project**  
 **In collaboration with Seaspan Shipyards**
 
 ---
 
 ## Overview
 
-WeldPath Viz is a browser-based 3D point cloud viewer and weld path planning tool. It lets you load a reconstructed 3D point cloud of a welding part, visually inspect it, define a weld path by clicking start and end points directly on the part surface, and read out the exact X, Y, Z coordinates.
+Robotic welding arms today need to be manually programmed for every new part — an engineer physically moves the arm to each weld point and saves its position. This is slow and has to be repeated for every new joint geometry.
 
-**Live site:** https://chenry513.github.io/weldpath-viz/visualize_weld.html
+This project automates that step. Take 3 photos of a weld joint, run the pipeline, and get real-world weld path coordinates in centimeters — ready to send to a robot arm.
+
+```
+3 photos → VGGT 3D reconstruction → point cloud → scale calibration → weld coordinates (cm)
+```
+
+The 3D point cloud can be loaded into the **WeldPath Viz viewer** included in this repo to visually inspect the reconstruction and define start and end weld points.
+
+**Live viewer:** https://chenry513.github.io/vggt/
 
 ---
 
-## Background
+## How It Works
 
-This tool was built as part of a research project exploring automated robotic weld path generation using [VGGT (Visual Geometry Grounded Deep Structure From Motion)](https://github.com/facebookresearch/vggt) — a model developed by Meta Research that reconstructs 3D geometry from standard camera images.
+**Step 1 — Capture**  
+Take 3 photos of the weld joint from slightly different angles. All 3 should show the same face of the joint. The more consistent the camera position and distance, the better the reconstruction.
 
-The broader pipeline works like this:
+**Step 2 — 3D Reconstruction**  
+[VGGT](https://github.com/facebookresearch/vggt) (by Meta Research) processes the photos and outputs a 3D point cloud — hundreds of thousands of real-world coordinate points representing the surface of the scanned object.
 
-```
-Photos of weld joint → VGGT 3D reconstruction → Point cloud → WeldPath Viz → Robot coordinates
-```
+**Step 3 — Scale Calibration**  
+VGGT gives shape but not real-world size. The welding fixture table has a grid of holes spaced exactly 5 cm apart. After reconstruction, the script opens a top-down view of the point cloud and you click the centers of two adjacent holes. The script uses that known distance to convert every coordinate to centimeters.
 
-The idea is that instead of manually programming a robotic welding arm for every new joint geometry, you take a few photos of the part, reconstruct it in 3D, and use this visualizer to inspect the result and define where the robot should weld as the project develops.
+**Step 4 — Export**  
+The script saves:
+- `reconstruction.ply` — the scaled point cloud, loadable in the viewer or any 3D tool
+- `scene_info.json` — scene dimensions and the scale factor applied
+- `depth_result_N.png` — a depth map for each input image
 
 ---
 
-## Features
+## Setup
 
-- **Load any point cloud** — supports `.ply` (ASCII and binary), `.csv`, and `.json` formats
-- **Interactive 3D view** — rotate, zoom, and pan around the reconstructed part
-- **Click-to-set weld points** — click directly on the part surface to define start and end
-- **Weld simulation** — animated torch playback showing the path traversal
-- **Coordinate readout** — displays exact X, Y, Z coordinates and direction vector for the robot
+### 1. Clone this repo
+
+```bash
+git clone https://github.com/chenry513/vggt.git
+cd vggt
+```
+
+### 2. Install VGGT
+
+VGGT is not a pip package — it needs to be installed from source inside this folder.
+
+```bash
+pip install -e .
+```
+
+### 3. Install dependencies
+
+```bash
+pip install torch numpy matplotlib scikit-learn scipy opencv-contrib-python Pillow huggingface_hub safetensors einops
+```
+
+> On Windows, if you see an OpenMP warning on startup it is harmless. It is suppressed automatically by the script.
 
 ---
 
 ## Usage
 
-Visit the live site at https://chenry513.github.io/weldpath-viz/visualize_weld.html
+### Configure
 
-### Load your point cloud
+Open `weld_pipeline.py` and update the config at the top of `main()`:
 
-Drop one of the following file types onto the viewer:
-
-| Format | Source |
-|--------|--------|
-| `.ply` | MeshLab, CloudCompare, or the VGGT reconstruction script |
-| `.csv` | Any CSV with `x, y, z` columns (plus optional `r, g, b`) |
-| `.json` | Output from the `weld_reconstruction.py` script |
-
-### Define the weld path
-
-1. Click **SET START** in the sidebar
-2. Click a point on the part surface in the 3D view — a green **S** marker appears
-3. Click **SET END** and click the end point — a cyan **E** marker appears
-4. Press **PLAY WELD** to simulate the torch moving along the path
-
-### Read the coordinates
-
-The sidebar shows:
-
-```
-START
-  x: -0.231456
-  y:  0.018302
-  z:  0.941200
-
-END
-  x:  0.198340
-  y:  0.021100
-  z:  0.938900
-
-DIRECTION VECTOR
-  x:  0.998102
-  y:  0.012300
-  z: -0.001200
-
-LENGTH: 0.429900
+```python
+image_names  = ["photo1.png", "photo2.png", "photo3.png"]  # your image filenames
+CONF_THRESH  = 1.0   # drop low-confidence points (1.0 is a good default)
+DOWNSAMPLE   = 1     # set to 4 to reduce file size and speed things up
+HOLE_SPACING = 0.05  # fixture hole spacing in meters — 5 cm by default
 ```
 
-These coordinates can be passed directly to a robot controller or used as waypoints in a motion planning system.
+### Run
+
+```bash
+python weld_pipeline.py
+```
+
+### Scale calibration
+
+After reconstruction, a top-down view of the point cloud opens. Click the centers of two adjacent holes on the fixture table, then close the window. The script calculates the scale factor and applies it to all coordinates.
+
+> Adjacent means directly next to each other horizontally or vertically — not diagonal.
+
+### Outputs
+
+| File | Description |
+|------|-------------|
+| `reconstruction.ply` | Full point cloud in real-world meters |
+| `scene_info.json` | Scene dimensions in cm and scale factor used |
+| `depth_result_N.png` | Depth map for each input image |
 
 ---
 
-## Controls
+## Viewing the Result
 
-| Input | Action |
-|-------|--------|
-| Left drag | Rotate |
-| Scroll | Zoom |
-| Right drag | Pan |
-| Click a point | Inspect coordinates |
-| SET START → click | Set weld start point |
-| SET END → click | Set weld end point |
-| PLAY WELD | Animate the weld path |
-| RESET | Reset camera to default view |
+Load `reconstruction.ply` into the viewer at **https://chenry513.github.io/vggt/**
+
+1. Drop the `.ply` file onto the viewer
+2. Click **Set Start** and click a point on the joint surface
+3. Click **Set End** and click the end of the seam
+4. Coordinates are shown in centimeters in the sidebar
+5. Press **Play Weld** to animate the path
+
+The viewer runs entirely in the browser — no software installation needed.
 
 ---
 
-## File Format Details
+## Tips for Good Results
 
-### PLY
-Supports both ASCII and binary PLY (little and big endian). Property names `x y z red green blue` or `x y z r g b` are both recognized. Large files are automatically subsampled to 80,000 rendered points for performance.
+- All 3 photos should show the **same face** of the weld joint — do not shoot from completely different sides
+- Move the camera **slightly left and right** between shots, keeping roughly the same distance and height
+- **Get close** — the joint should fill most of the frame
+- **Consistent lighting** helps — avoid harsh shadows across the seam
+- A **fixed camera mount** instead of hand-held photos significantly improves accuracy
 
-### CSV
-Expects a header row. Recognized column names: `x`, `y`, `z`, `r`, `g`, `b`, `confidence`. All other columns are ignored.
+---
 
-### JSON
-Supports two formats:
+## Current Limitations
 
-**Flat point list** (from `weld_reconstruction.py`):
-```json
-{
-  "format": "weld_part_v1",
-  "bounding_box": { "x_min": -0.46, "x_max": 0.26, ... },
-  "points": [{ "id": 0, "x": 0.12, "y": -0.03, "z": 0.94, "r": 180, "g": 160, "b": 140 }]
-}
-```
+**Hand-held photos**  
+Camera position and angle vary slightly between shots when taken by hand. This is the main source of coordinate inaccuracy. A fixed motorized camera mount is being built to eliminate this.
 
-**Weld path** (seam waypoints):
-```json
-{
-  "format": "weld_path_v1",
-  "seams": [{ "seam_id": 0, "waypoints": [{ "position": { "x": 0.1, "y": 0.0, "z": 0.9 } }] }]
-}
-```
+**Manual scale calibration**  
+The hole-clicking step requires a user each run. This will be automated once the camera mount provides consistent framing.
+
+**Manual weld point selection**  
+Start and end points are currently selected by clicking in the viewer. A geometric seam detection algorithm has been built and tested. The next step is training a point cloud model (PointNet++) on labeled weld joint data to make detection fully automatic.
 
 ---
 
 ## Project Structure
 
 ```
-weldpath-viz/
-├── visualize_weld.html      
+vggt/
+├── weld_pipeline.py        main reconstruction and calibration script
+├── visualize_weld.html     3D viewer (also live at GitHub Pages)
+├── requirements.txt        Python dependencies
 ├── README.md
+└── vggt/                   VGGT model code (Meta Research)
 ```
 
 ---
 
 ## Acknowledgements
 
-Built at **BCIT** in collaboration with **Seaspan Shipyards** as part of a research project into automated robotic weld path generation using VGGT.
+Built at **BCIT** in collaboration with **Seaspan Shipyards**.
 
 VGGT by Meta Research: [github.com/facebookresearch/vggt](https://github.com/facebookresearch/vggt)
-
----
-
-## License
-
-MIT License
