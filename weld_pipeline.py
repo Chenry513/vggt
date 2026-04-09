@@ -187,7 +187,7 @@ def print_scene_stats(scaled_pts, scale):
 
 
 def main():
-    image_names  = ["lap1.png", "lap2.png", "lap3.png"]
+    image_names  = ["groove1.jpg", "groove2.jpg", "groove3.jpg"]
     CONF_THRESH  = 1.0   # drop points below this VGGT confidence score
     DOWNSAMPLE   = 1     # set to 4 to speed things up and reduce file size
     HOLE_SPACING = 0.05  # distance between adjacent fixture holes in meters (5cm)
